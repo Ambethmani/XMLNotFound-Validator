@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>XMLNotFound Validator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f14;--surface:#161921;--surface2:#1e2230;
+  --border:#2a2f3d;--border2:#343b4f;--text:#e8eaf0;--muted:#7a80a0;
+  --accent:#4f8ef7;--accent2:#3a6fd4;
+  --success:#3ecf8e;--warn:#f5a623;--danger:#f04545;--info:#7b6ef7;
+  --violet:#a78bfa;--teal:#2dd4bf;
+  --r:10px;--rs:6px;
+  --mono:'JetBrains Mono','Fira Code',monospace;
+  --sans:'DM Sans','Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column}
+
+/* Header */
+header{border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;gap:14px;background:var(--surface);position:sticky;top:0;z-index:10;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.logo-icon{width:30px;height:30px;background:linear-gradient(135deg,#4f8ef7,#7b6ef7);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;letter-spacing:-.5px}
+.logo-text{font-size:14px;font-weight:600;white-space:nowrap}
+.logo-text span{color:var(--accent)}
+
+/* API bar */
+.api-bar{flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--rs);padding:0 10px;height:34px;max-width:500px;transition:border-color .2s}
+.api-bar:focus-within{border-color:var(--accent)}
+.api-label{font-size:11px;color:var(--muted);white-space:nowrap;font-weight:500}
+.api-bar input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--mono);font-size:12px}
+.api-bar input::placeholder{color:#3a3f52}
+.btn-save{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--sans);flex-shrink:0}
+.btn-save:hover{background:var(--accent2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex-shrink:0;transition:background .3s}
+.dot.live{background:var(--success);box-shadow:0 0 0 2px rgba(62,207,142,.25)}
+.dot.err{background:var(--danger)}
+.dot.saved{background:var(--warn)}
+
+/* Chips */
+.chips{display:flex;gap:5px;flex-wrap:wrap;padding:7px 20px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.chip{display:flex;align-items:center;gap:4px;padding:2px 9px;border-radius:100px;font-size:11px;border:1px solid var(--border);color:var(--muted);background:var(--bg)}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:1fr 1fr;flex:1}
+.panel{display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.panel:last-child{border-right:none}
+.ph{padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);flex-shrink:0}
+.pt{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.pb{flex:1;overflow:auto;position:relative}
+
+/* Editor */
+#editor{width:100%;height:100%;min-height:360px;background:var(--bg);color:var(--text);border:none;outline:none;resize:none;font-family:var(--mono);font-size:13px;line-height:1.7;padding:18px;tab-size:2}
+#editor::placeholder{color:#3a3f52}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--rs);font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;font-family:var(--sans)}
+.btn-g{background:transparent;border-color:var(--border2);color:var(--muted)}
+.btn-g:hover{background:var(--surface2);color:var(--text)}
+.btn-p{background:var(--accent);color:#fff;font-size:14px;padding:7px 22px}
+.btn-p:hover{background:var(--accent2)}
+.btn-p:disabled{opacity:.5;cursor:not-allowed}
+
+/* Bottom bar */
+.bb{padding:10px 18px;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+.bl{display:flex;align-items:center;gap:8px}
+.cc{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.mpill{font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border2);color:var(--muted)}
+.mpill.api{border-color:rgba(62,207,142,.3);color:var(--success);background:rgba(62,207,142,.08)}
+
+/* Results */
+.rp{padding:14px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:280px;gap:12px;color:var(--muted)}
+.ei{font-size:30px;opacity:.3}
+.empty p{font-size:13px;text-align:center;max-width:200px;line-height:1.6}
+
+.summ{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r);margin-bottom:12px;font-size:13px;font-weight:500}
+.summ.ok{background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.25);color:var(--success)}
+.summ.bad{background:rgba(240,69,69,.1);border:1px solid rgba(240,69,69,.25);color:var(--danger)}
+
+.bdg{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:600}
+.bd{background:var(--danger);color:#fff}
+.bs{background:var(--success);color:#0d2a1d}
+
+/* Issue group */
+.ig{margin-bottom:10px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.ig-h{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:var(--surface);cursor:pointer;user-select:none;gap:10px}
+.ig-h:hover{background:var(--surface2)}
+.ig-l{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500}
+.si{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.ic-dup{background:rgba(123,110,247,.18);color:var(--info)}
+.ic-cmt{background:rgba(245,166,35,.18);color:var(--warn)}
+.ic-tbl{background:rgba(79,142,247,.18);color:var(--accent)}
+.ic-ent{background:rgba(240,69,69,.18);color:var(--danger)}
+.ic-xmlns{background:rgba(167,139,250,.18);color:var(--violet)}
+.ic-cmtd{background:rgba(45,212,191,.18);color:var(--teal)}
+.ic-ntbl{background:rgba(249,115,22,.18);color:#fb923c}
+.chev{color:var(--muted);font-size:11px;transition:transform .2s}
+.chev.open{transform:rotate(180deg)}
+.ig-b{border-top:1px solid var(--border)}
+
+/* Issue item */
+.ii{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;line-height:1.6}
+.ii:last-child{border-bottom:none}
+.ii-msg{color:var(--text);margin-bottom:6px;font-weight:500}
+.loc-bar{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;padding:3px 10px;font-family:var(--mono);font-size:11.5px;color:var(--text);margin-bottom:6px}
+.loc-label{color:var(--muted);font-size:10.5px}
+.loc-val{color:var(--accent);font-weight:500}
+.loc-sep{color:var(--muted);margin:0 2px}
+.ii-meta{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:2px 7px;border-radius:4px;font-size:11px;font-family:var(--mono);background:var(--surface2);border:1px solid var(--border2);color:var(--muted)}
+.tag.d{background:rgba(240,69,69,.1);border-color:rgba(240,69,69,.3);color:#f8aaaa}
+.tag.w{background:rgba(245,166,35,.1);border-color:rgba(245,166,35,.3);color:#f8d08a}
+.tag.v{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#c4b5fd}
+.tag.t{background:rgba(45,212,191,.1);border-color:rgba(45,212,191,.3);color:#5eead4}
+
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:680px){
+  .layout{grid-template-columns:1fr}
+  .panel{border-right:none;border-bottom:1px solid var(--border)}
+  .chips{display:none}
+  .api-bar{max-width:100%}
+  header{flex-wrap:wrap;height:auto;padding:10px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">XN</div>
+    <div class="logo-text">XMLNotFound <span>Validator</span></div>
+  </div>
+  <div class="api-bar">
+    <div class="dot" id="dot"></div>
+    <span class="api-label">API URL:</span>
+    <input type="url" id="apiInput" placeholder="http://localhost:3000  (blank = browser mode)"/>
+    <button class="btn-save" id="btnSave">Save</button>
+  </div>
+  <button class="btn btn-g" id="btnSample" style="flex-shrink:0;font-size:12px;">Load sample</button>
+</header>
+
+<div class="chips">
+  <div class="chip"><span style="color:var(--info)">⊞</span> Duplicate cite href</div>
+  <div class="chip"><span style="color:var(--warn)">⊟</span> Comment in comment</div>
+  <div class="chip"><span style="color:var(--accent)">⊞</span> Table th-only</div>
+  <div class="chip"><span style="color:var(--danger)">⊟</span> Invalid entities</div>
+  <div class="chip"><span style="color:var(--violet)">⊟</span> Empty xmlns=""</div>
+  <div class="chip"><span style="color:var(--teal)">⊟</span> Single-hyphen comment</div>
+  <div class="chip"><span style="color:#fb923c">⊞</span> Nested table</div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="ph">
+      <span class="pt">XML / HTML Input</span>
+      <button class="btn btn-g" id="btnClear" style="padding:3px 9px;font-size:11px;">Clear</button>
+    </div>
+    <div class="pb"><textarea id="editor" spellcheck="false" placeholder="Paste your XML or HTML here…
+
+Click 'Load sample' to test all 7 scenarios.
+Press Ctrl+Enter to validate."></textarea></div>
+    <div class="bb">
+      <div class="bl">
+        <span class="cc" id="cc">0 chars</span>
+        <span class="mpill" id="mp">Browser mode</span>
+      </div>
+      <button class="btn btn-p" id="btnValidate">Validate</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">
+      <span class="pt">Results</span>
+      <span id="rb"></span>
+    </div>
+    <div class="pb" id="res">
+      <div class="empty"><div class="ei">◈</div><p>Paste XML or HTML and click Validate</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let apiUrl = localStorage.getItem('xnf_api') || '';
+const dot=document.getElementById('dot'), apiInput=document.getElementById('apiInput'),
+      btnSave=document.getElementById('btnSave'), mp=document.getElementById('mp'),
+      editor=document.getElementById('editor'), btnV=document.getElementById('btnValidate'),
+      btnClear=document.getElementById('btnClear'), btnSample=document.getElementById('btnSample'),
+      res=document.getElementById('res'), rb=document.getElementById('rb'),
+      cc=document.getElementById('cc');
+
+apiInput.value=apiUrl; syncStatus();
+
+function syncStatus(){
+  if(apiUrl){dot.className='dot saved';mp.textContent='API mode';mp.className='mpill api';}
+  else{dot.className='dot';mp.textContent='Browser mode';mp.className='mpill';}
+}
+btnSave.addEventListener('click',()=>{
+  apiUrl=apiInput.value.trim().replace(/\/$/,'');
+  localStorage.setItem('xnf_api',apiUrl); syncStatus();
+  btnSave.textContent='Saved ✓'; btnSave.style.background='var(--success)';
+  setTimeout(()=>{btnSave.textContent='Save';btnSave.style.background='';},1600);
+});
+apiInput.addEventListener('keydown',e=>{if(e.key==='Enter')btnSave.click();});
+
+// ── Sample covering all 7 scenarios ──────────────────────────────────────────
+const SAMPLE=`<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns_="" xmlns:ns="">
+
+  <!-- Scenario 1: Duplicate href in .cite element -->
+  <a class="cite" href="ref1 ref2 ref1 ref3 ref2">Citation with duplicates</a>
+
+  <!-- Scenario 2: Double-hyphen inside comment (illegal XML) -->
+  <!-- This comment has -- a double hyphen inside -->
+
+  <!-- Scenario 3: Table with only th, no td -->
+  <table>
+    <tr>
+      <th>Column A</th>
+      <th>Column B</th>
+    </tr>
+  </table>
+
+  <!-- Scenario 4: Malformed and unknown named entities -->
+  <p>Malformed: &ndf..553;  Unknown: &hdfkhsdfb;</p>
+
+  <!-- Scenario 5: Empty xmlns already shown on root element above -->
+
+  <!-- Scenario 6: Single-hyphen comment delimiters -->
+  <!- This opens with one hyphen only - wrong ->
+
+  <!-- Scenario 7: Nested table inside table -->
+  <table>
+    <tr><td>Outer cell</td></tr>
+    <table>
+      <tr><td>Inner cell — NESTED!</td></tr>
+    </table>
+  </table>
+
+  <!-- Valid entities (no issue): &amp; &lt; &gt; &nbsp; -->
+
+</root>`;
+
+// ── In-browser validator ──────────────────────────────────────────────────────
+const VE=new Set(['amp','lt','gt','quot','apos','nbsp','copy','reg','trade','mdash','ndash','laquo','raquo','hellip','euro','pound','yen','cent','times','divide','plusmn','frac12','frac14','frac34','deg','micro','para','middot','bull','prime','Prime','lsquo','rsquo','ldquo','rdquo','sbquo','bdquo','dagger','Dagger','permil','lsaquo','rsaquo','fnof','alpha','beta','gamma','delta','epsilon','zeta','eta','theta','iota','kappa','lambda','mu','nu','xi','omicron','pi','rho','sigma','tau','upsilon','phi','chi','psi','omega','ensp','emsp','thinsp','zwnj','zwj','lrm','rlm','iexcl','curren','brvbar','sect','uml','ordf','sup1','sup2','sup3','acute','macr','cedil','ordm','AElig','Ccedil','ETH','Ntilde','Oslash','THORN','szlig','aelig','ccedil','eth','ntilde','oslash','thorn','yuml','OElig','oelig','Scaron','scaron','Yuml','circ','tilde','spades','clubs','hearts','diams','forall','part','exist','empty','nabla','isin','notin','ni','prod','sum','minus','lowast','radic','prop','infin','ang','and','or','cap','cup','int','there4','sim','cong','asymp','ne','equiv','le','ge','sub','sup','nsub','sube','supe','oplus','otimes','perp','sdot','lceil','rceil','lfloor','rfloor','lang','rang','loz','crarr','lArr','uArr','rArr','dArr','hArr']);
+
+function loc(src,idx){
+  const b=src.substring(0,idx),ls=b.split('\n');
+  return{line:ls.length,offset:ls[ls.length-1].length+1};
+}
+
+function bv(xml){
+  const issues=[];let m;
+
+  // 1. Duplicate cite hrefs
+  const r1=/<[a-zA-Z][^>]*?>/gs;
+  while((m=r1.exec(xml))!==null){
+    const tag=m[0];
+    const cm=tag.match(/\bclass=["']([^"']*)["']/i); if(!cm||!/\bcite\b/i.test(cm[1]))continue;
+    const hm=tag.match(/\bhref=["']([^"']*)["']/i); if(!hm)continue;
+    const href=hm[1].trim(); if(!href)continue;
+    const seen=new Set(),dupes=new Set();
+    href.split(/\s+/).filter(Boolean).forEach(v=>seen.has(v)?dupes.add(v):seen.add(v));
+    if(dupes.size){const l=loc(xml,m.index);issues.push({scenario:'duplicate_cite_href',message:'Duplicate href value(s) in .cite element',line:l.line,offset:l.offset,duplicates:[...dupes],href});}
+  }
+
+  // 2. Double-hyphen inside comment
+  const r2=/<!--([\s\S]*?)-->/g;
+  while((m=r2.exec(xml))!==null){
+    if(/--/.test(m[1])){
+      const ii=m[1].indexOf('--'),exact=m.index+4+ii,l=loc(xml,exact);
+      issues.push({scenario:'comment_inside_comment',message:'Double hyphen "--" inside XML comment',line:l.line,offset:l.offset,snippet:m[0].substring(0,100)});
+    }
+  }
+
+  // 3. Table th-only
+  const r3=/<table[\s\S]*?<\/table>/gi;
+  while((m=r3.exec(xml))!==null){
+    if(/<th[\s>]/i.test(m[0])&&!/<td[\s>]/i.test(m[0])){
+      const l=loc(xml,m.index);
+      issues.push({scenario:'table_header_only',message:'Table has <th> but no <td>',line:l.line,offset:l.offset});
+    }
+  }
+
+  // 4. Named entities
+  const r4=/&([^;#\s]{1,50}?);/g;
+  while((m=r4.exec(xml))!==null){
+    const n=m[1]; if(/^#/.test(n)||VE.has(n))continue;
+    const bad=/\./.test(n)||/[^a-zA-Z0-9]/.test(n)||n.length>20||/^\d/.test(n);
+    const l=loc(xml,m.index);
+    issues.push({scenario:bad?'invalid_named_entity_malformed':'invalid_named_entity_unknown',message:bad?`Malformed entity: &${n};`:`Unknown entity: &${n};`,entity:`&${n};`,line:l.line,offset:l.offset});
+  }
+
+  // 5. Empty xmlns attribute
+  const r5=/\b(xmlns(?:_|:[a-zA-Z_][\w.-]*)?\s*=\s*["'])\s*["']/g;
+  while((m=r5.exec(xml))!==null){
+    const attrName=m[1].replace(/\s*=\s*["']$/,'').trim();
+    const l=loc(xml,m.index);
+    issues.push({scenario:'empty_xmlns_attribute',message:`Empty xmlns attribute: ${attrName}="" — illegal in XML Namespaces spec`,attribute:attrName,line:l.line,offset:l.offset,snippet:xml.substring(m.index,m.index+60).replace(/\n/g,' ')});
+  }
+
+  // 6. Malformed comment delimiter — single hyphen
+  const r6=/<!-(?!-)/g;
+  while((m=r6.exec(xml))!==null){
+    const l=loc(xml,m.index);
+    issues.push({scenario:'malformed_comment_delimiter',message:'Malformed comment opening "<!-" — should be "<!--"',line:l.line,offset:l.offset,snippet:xml.substring(m.index,m.index+60).replace(/\n/g,' ')});
+  }
+  // single-hyphen close associated with a single-hyphen open
+  const r6b=/(?<!)->/g;
+  while((m=r6b.exec(xml))!==null){
+    const before=xml.substring(Math.max(0,m.index-200),m.index);
+    if(/<!-(?!-)/.test(before)){
+      const l=loc(xml,m.index);
+      issues.push({scenario:'malformed_comment_delimiter',message:'Malformed comment closing "->" — should be "-->"',line:l.line,offset:l.offset,snippet:xml.substring(Math.max(0,m.index-20),m.index+20).replace(/\n/g,' ')});
+    }
+  }
+
+  // 7. Nested table
+  const openRx2=/<table[\s>]/gi;
+  const opos=[];
+  while((m=openRx2.exec(xml))!==null) opos.push(m.index);
+  if(opos.length>=2){
+    for(let i=0;i<opos.length;i++){
+      const start=opos[i];
+      let depth=0,endPos=-1,pos=start;
+      const sr=/<\/?table[\s>]/gi; sr.lastIndex=start; let sm2;
+      while((sm2=sr.exec(xml))!==null){
+        if(/^<table/i.test(sm2[0]))depth++; else{depth--;if(depth===0){endPos=sm2.index;break;}}
+      }
+      if(endPos===-1)continue;
+      for(let j=i+1;j<opos.length;j++){
+        const inner=opos[j];
+        if(inner>start&&inner<endPos){
+          const ol=loc(xml,start),il=loc(xml,inner);
+          issues.push({scenario:'nested_table',message:`Nested <table> inside <table> (outer at Line ${ol.line})`,line:il.line,offset:il.offset,snippet:xml.substring(inner,inner+60).replace(/\n/g,' ')});
+        }
+      }
+    }
+  }
+
+  const s={duplicate_cite_href:[],comment_inside_comment:[],table_header_only:[],invalid_named_entity_malformed:[],invalid_named_entity_unknown:[],empty_xmlns_attribute:[],malformed_comment_delimiter:[],nested_table:[]};
+  issues.forEach(i=>{if(s[i.scenario])s[i.scenario].push(i);});
+  return{totalIssues:issues.length,scenarios:s,allIssues:issues};
+}
+
+// ── Validate ──────────────────────────────────────────────────────────────────
+async function validate(){
+  const content=editor.value.trim(); if(!content){showEmpty('Paste XML or HTML first');return;}
+  setLoading(true); let result;
+  try{
+    if(apiUrl){
+      const r=await fetch(apiUrl+'/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      result=await r.json(); dot.className='dot live';
+    }else{result=bv(content);}
+  }catch(e){dot.className='dot err';result=bv(content);}
+  finally{setLoading(false);}
+  render(result);
+}
+
+// ── Scenario metadata ─────────────────────────────────────────────────────────
+const SM={
+  duplicate_cite_href:           {label:'Duplicate cite href',          cls:'ic-dup', icon:'⊞'},
+  comment_inside_comment:        {label:'Comment inside comment',       cls:'ic-cmt', icon:'⊟'},
+  table_header_only:             {label:'Table header only',            cls:'ic-tbl', icon:'⊞'},
+  invalid_named_entity_malformed:{label:'Malformed entity',             cls:'ic-ent', icon:'⊟'},
+  invalid_named_entity_unknown:  {label:'Unknown entity',               cls:'ic-ent', icon:'⊟'},
+  empty_xmlns_attribute:         {label:'Empty xmlns attribute',        cls:'ic-xmlns',icon:'⊟'},
+  malformed_comment_delimiter:   {label:'Single-hyphen comment',        cls:'ic-cmtd',icon:'⊟'},
+  nested_table:                  {label:'Nested table',                 cls:'ic-ntbl',icon:'⊞'},
+};
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(r){
+  rb.innerHTML=r.totalIssues===0?`<span class="bdg bs">✓ Clean</span>`:`<span class="bdg bd">${r.totalIssues} issue${r.totalIssues>1?'s':''}</span>`;
+  if(r.totalIssues===0){res.innerHTML=`<div class="rp"><div class="summ ok">✓ &nbsp;No issues found — XML is valid</div></div>`;return;}
+  const gc=Object.values(r.scenarios).filter(a=>a.length>0).length;
+  let h=`<div class="rp"><div class="summ bad">⚠ &nbsp;${r.totalIssues} issue${r.totalIssues!==1?'s':''} across ${gc} scenario${gc!==1?'s':''}</div>`;
+  Object.entries(r.scenarios).forEach(([k,issues])=>{
+    if(!issues.length)return;
+    const mt=SM[k]||{label:k,cls:'ic-dup',icon:'◈'};
+    h+=`<div class="ig"><div class="ig-h" onclick="tog(this)"><div class="ig-l"><div class="si ${mt.cls}">${mt.icon}</div>${x(mt.label)}</div><div style="display:flex;align-items:center;gap:8px"><span class="bdg bd">${issues.length}</span><span class="chev open">▾</span></div></div><div class="ig-b">${issues.map(ri).join('')}</div></div>`;
+  });
+  res.innerHTML=h+'</div>';
+}
+
+function ri(i){
+  const lineStr=i.line!=null?i.line:'—', offStr=i.offset!=null?i.offset:'—';
+  const locBar=`<div class="loc-bar"><span class="loc-label">Line</span><span class="loc-val">${lineStr}</span><span class="loc-sep">·</span><span class="loc-label">Col</span><span class="loc-val">${offStr}</span></div>`;
+  let meta='';
+  if(i.entity)    meta+=`<span class="tag d">${x(i.entity)}</span>`;
+  if(i.attribute) meta+=`<span class="tag v">${x(i.attribute)}</span>`;
+  if(i.duplicates)i.duplicates.forEach(d=>{meta+=`<span class="tag w">dup: ${x(d)}</span>`;});
+  if(i.href)      meta+=`<span class="tag">${x(i.href.substring(0,50))}</span>`;
+  if(i.snippet)   meta+=`<span class="tag t">${x(i.snippet.replace(/\s+/g,' ').substring(0,65))}…</span>`;
+  return`<div class="ii"><div class="ii-msg">${x(i.message)}</div>${locBar}${meta?`<div class="ii-meta">${meta}</div>`:''}</div>`;
+}
+
+function tog(h){
+  const b=h.nextElementSibling,c=h.querySelector('.chev'),open=b.style.display!=='none';
+  b.style.display=open?'none':'block';c.classList.toggle('open',!open);
+}
+function x(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setLoading(on){btnV.disabled=on;btnV.innerHTML=on?`<span class="spinner"></span> Validating…`:'Validate';}
+function showEmpty(msg){res.innerHTML=`<div class="empty"><div class="ei">◈</div><p>${msg}</p></div>`;rb.innerHTML='';}
+
+btnV.addEventListener('click',validate);
+editor.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();validate();}});
+btnClear.addEventListener('click',()=>{editor.value='';cc.textContent='0 chars';showEmpty('Paste XML or HTML to begin');rb.innerHTML='';});
+btnSample.addEventListener('click',()=>{editor.value=SAMPLE;cc.textContent=SAMPLE.length.toLocaleString()+' chars';editor.focus();});
+editor.addEventListener('input',()=>{cc.textContent=editor.value.length.toLocaleString()+' chars';});
+</script>
+</body>
+</html>

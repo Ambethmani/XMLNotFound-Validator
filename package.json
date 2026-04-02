@@ -1,0 +1,30 @@
+{
+  "name": "xmlnotfound-validator",
+  "version": "2.0.0",
+  "description": "XMLNotFound Validator — XML/HTML issue checker with line + offset reporting",
+  "main": "XMLnotfound.js",
+  "bin": {
+    "xml-validator": "./cli.js"
+  },
+  "scripts": {
+    "start":       "node XMLnotfound.js",
+    "validate":    "node cli.js",
+    "build:win":   "npx pkg cli.js --targets node18-win-x64   --output dist/xml-validator-win.exe",
+    "build:linux": "npx pkg cli.js --targets node18-linux-x64 --output dist/xml-validator-linux",
+    "build:mac":   "npx pkg cli.js --targets node18-macos-x64 --output dist/xml-validator-mac",
+    "build:all":   "npx pkg cli.js --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --output dist/xml-validator"
+  },
+  "pkg": {
+    "scripts": ["validator.js", "XMLnotfound.js"],
+    "assets":  [],
+    "targets": ["node18-win-x64"]
+  },
+  "keywords": ["xml", "validator", "lint", "xmlnotfound"],
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}
