@@ -1,13 +1,13 @@
 {
-  "name": "XMLNotFound-validator",
+  "name": "XMLnotfound-validator",
   "version": "2.0.0",
-  "description": "XMLNotFound Validator — XML/HTML issue checker with line + offset reporting",
-  "main": "XMLNotFound.js",
+  "description": "XMLnotfound Validator — XML/HTML issue checker with line + offset reporting",
+  "main": "XMLnotfound.js",
   "bin": {
     "xml-validator": "./cli.js"
   },
   "scripts": {
-    "start":       "node XMLNotFound.js",
+    "start":       "node XMLnotfound.js",
     "validate":    "node cli.js",
     "build:win":   "npx pkg cli.js --targets node18-win-x64   --output dist/xml-validator-win.exe",
     "build:linux": "npx pkg cli.js --targets node18-linux-x64 --output dist/xml-validator-linux",
@@ -15,11 +15,11 @@
     "build:all":   "npx pkg cli.js --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --output dist/xml-validator"
   },
   "pkg": {
-    "scripts": ["validator.js", "XMLNotFound.js"],
+    "scripts": ["validator.js", "XMLnotfound.js"],
     "assets":  [],
     "targets": ["node18-win-x64"]
   },
-  "keywords": ["xml", "validator", "lint", "XMLNotFound"],
+  "keywords": ["xml", "validator", "lint", "XMLnotfound"],
   "license": "ISC",
   "dependencies": {
     "express": "^5.2.1"
