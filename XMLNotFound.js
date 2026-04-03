@@ -1,8 +1,8 @@
 /**
  * XMLNotFound Validator - REST API Server
- * Renamed from server.js → XMLnotfound.js
+ * Renamed from server.js → XMLNotFound.js
  *
- * Start:  node XMLnotfound.js
+ * Start:  node XMLNotFound.js
  * Port:   process.env.PORT or 3000
  */
 
