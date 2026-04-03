@@ -7,6 +7,7 @@
  */
 
 const express = require('express');
+const path = require('path');
 const { validateXML } = require('./validator');
 
 const app = express();
@@ -86,6 +87,11 @@ app.post('/validate', (req, res) => {
   res.json(result);
 });
 
+// Serve UI at /ui
+app.get('/ui', (req, res) => {
+  res.sendFile(path.join(__dirname, 'ui.html'));
+});
+
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('[XMLNotFound] Unhandled error:', err.message);
@@ -107,6 +113,7 @@ if (require.main === module) {
     console.log('  Press Ctrl+C to stop');
     console.log('');
   });
+  
 }
 
 module.exports = app;
