@@ -1,5 +1,5 @@
 /**
- * XMLNotFound Validator - Core Logic v3
+ * XMLNotFound Validator - Core Logic v4
  * Scenarios:
  *  1. Duplicate href values in .cite elements
  *  2. Double-hyphen "--" inside XML comment
@@ -8,6 +8,8 @@
  *  5. Empty xmlns attribute  e.g. xmlns_=""  or  xmlns=""
  *  6. Comment starting or ending with single hyphen  <!- ...  or  ... ->
  *  7. Nested <table> inside <table>
+ *  8. Citation structure collapsed — malformed <sup> inside .cite element
+ *  9. Empty <table> tag — table with no rows or content
  *
  * Every issue includes: line (1-based) and offset/column (1-based)
  */
@@ -305,6 +307,147 @@ function checkNestedTables(xmlContent) {
   return issues;
 }
 
+
+// ─── Scenario 8 ──────────────────────────────────────────────────────────────
+/**
+ * Citation structure collapsed — malformed <sup> tag inside a .cite element.
+ *
+ * A structural collapse occurs when an XML/HTML generator corrupts the inner
+ * <sup> tag of a citation, leaking the bib-ref number into the tag name itself.
+ *
+ * Examples of collapsed patterns detected:
+ *   <sup129<          — number fused into tag name, unclosed
+ *   </sup129>         — number fused into closing tag name
+ *   <sup129>          — digit suffix on opening tag name
+ *   <sup NNN< span=""> — broken fragment: number + stray attribute
+ *
+ * Detection strategy:
+ *   1. Find every element with class containing "cite".
+ *   2. Grab the inner block up to its matching closing tag.
+ *   3. Inside that block, scan for malformed <sup…> patterns.
+ */
+function checkCollapsedCitationStructure(xmlContent) {
+  const issues = [];
+
+  // Step 1: find all opening tags that carry class="...cite..."
+  const tagRx = /<([a-zA-Z][a-zA-Z0-9]*)((?:\s[^>]*?)?)\s*>/gs;
+  let m;
+
+  while ((m = tagRx.exec(xmlContent)) !== null) {
+    const tagName  = m[1];
+    const attrStr  = m[2];
+    const fullOpen = m[0];
+
+    const classM = attrStr.match(/\bclass=["']([^"']*)["']/i);
+    if (!classM || !/\bcite\b/i.test(classM[1])) continue;
+
+    const openEnd = m.index + fullOpen.length;
+
+    // Step 2: find matching closing tag depth-aware
+    const bothRx = new RegExp(`<\\/?${tagName}[\\s>]`, 'gi');
+    bothRx.lastIndex = openEnd;
+    let depth = 1, closeIdx = -1, sm;
+    while ((sm = bothRx.exec(xmlContent)) !== null) {
+      if (/^<\//.test(sm[0])) { depth--; if (depth === 0) { closeIdx = sm.index; break; } }
+      else depth++;
+    }
+    const blockEnd   = closeIdx !== -1 ? closeIdx + `</${tagName}>`.length : Math.min(openEnd + 500, xmlContent.length);
+    const innerBlock = xmlContent.substring(openEnd, blockEnd);
+
+    // Step 3: scan for malformed <sup…> patterns
+
+    // Pattern A: <supNNN< or <supNNN> — digit fused into tag name
+    const supFusedRx = /<sup(\d+[\w]*)\s*[<>]/gi;
+    let sm2;
+    while ((sm2 = supFusedRx.exec(innerBlock)) !== null) {
+      const absIdx = openEnd + sm2.index;
+      const loc = getLocation(xmlContent, absIdx);
+      issues.push({
+        scenario: 'collapsed_citation_structure',
+        message:  `Collapsed citation: malformed <sup> — "${sm2[0].trim()}" (bib ref number leaked into tag name)`,
+        line:     loc.line,
+        offset:   loc.offset,
+        snippet:  xmlContent.substring(absIdx, absIdx + 80).replace(/\n/g, ' '),
+        element:  fullOpen.substring(0, 120),
+      });
+    }
+
+    // Pattern B: </supNNN> — number fused into closing tag
+    const supCloseRx = /<\/sup\d+[\w]*\s*>/gi;
+    while ((sm2 = supCloseRx.exec(innerBlock)) !== null) {
+      const absIdx = openEnd + sm2.index;
+      const loc = getLocation(xmlContent, absIdx);
+      issues.push({
+        scenario: 'collapsed_citation_structure',
+        message:  `Collapsed citation: malformed </sup> closing tag — "${sm2[0].trim()}" (should be </sup>)`,
+        line:     loc.line,
+        offset:   loc.offset,
+        snippet:  xmlContent.substring(absIdx, absIdx + 80).replace(/\n/g, ' '),
+        element:  fullOpen.substring(0, 120),
+      });
+    }
+
+    // Pattern C: stray bare number fragment between < and next tag-like token
+    // e.g.  <sup129< span="">  — the "< span" signals a broken tag boundary
+    const strayFragRx = /<(\d+)\s*</g;
+    while ((sm2 = strayFragRx.exec(innerBlock)) !== null) {
+      const absIdx = openEnd + sm2.index;
+      const loc = getLocation(xmlContent, absIdx);
+      issues.push({
+        scenario: 'collapsed_citation_structure',
+        message:  `Collapsed citation: stray numeric fragment "<${sm2[1]}<" — tag boundary is broken`,
+        line:     loc.line,
+        offset:   loc.offset,
+        snippet:  xmlContent.substring(absIdx, absIdx + 80).replace(/\n/g, ' '),
+        element:  fullOpen.substring(0, 120),
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ─── Scenario 9 ──────────────────────────────────────────────────────────────
+/**
+ * Empty <table> tag — a <table> element that contains no meaningful content:
+ * no rows (<tr>), no cells (<th>/<td>), no <thead>/<tbody>/<tfoot>/<caption>.
+ *
+ * Whitespace-only content and comment-only content both count as empty.
+ *
+ * Examples flagged:
+ *   <table></table>
+ *   <table>   </table>
+ *   <table><!-- placeholder --></table>
+ */
+function checkEmptyTable(xmlContent) {
+  const issues = [];
+  const rx = /<table(\s[^>]*)?>[\s\S]*?<\/table>/gi;
+  let m;
+  while ((m = rx.exec(xmlContent)) !== null) {
+    const block    = m[0];
+    const stripped = block.replace(/<!--[\s\S]*?-->/g, ''); // strip comments
+    const hasMeaningfulContent =
+      /<tr[\s>]/i.test(stripped)     ||
+      /<th[\s>]/i.test(stripped)     ||
+      /<td[\s>]/i.test(stripped)     ||
+      /<thead[\s>]/i.test(stripped)  ||
+      /<tbody[\s>]/i.test(stripped)  ||
+      /<tfoot[\s>]/i.test(stripped)  ||
+      /<caption[\s>]/i.test(stripped);
+    if (!hasMeaningfulContent) {
+      const loc = getLocation(xmlContent, m.index);
+      issues.push({
+        scenario: 'empty_table',
+        message:  'Empty <table> element — contains no rows, cells, or structural content',
+        line:     loc.line,
+        offset:   loc.offset,
+        snippet:  block.replace(/\s+/g, ' ').substring(0, 120),
+      });
+    }
+  }
+  return issues;
+}
+
 // ─── Main entry point ────────────────────────────────────────────────────────
 function validateXML(xmlContent) {
   if (!xmlContent || typeof xmlContent !== 'string') {
@@ -314,14 +457,16 @@ function validateXML(xmlContent) {
   const results = {
     totalIssues: 0,
     scenarios: {
-      duplicate_cite_href:            [],
-      comment_inside_comment:         [],
-      table_header_only:              [],
-      invalid_named_entity_malformed: [],
-      invalid_named_entity_unknown:   [],
-      empty_xmlns_attribute:          [],
-      malformed_comment_delimiter:    [],
-      nested_table:                   [],
+      duplicate_cite_href:              [],
+      comment_inside_comment:           [],
+      table_header_only:                [],
+      invalid_named_entity_malformed:   [],
+      invalid_named_entity_unknown:     [],
+      empty_xmlns_attribute:            [],
+      malformed_comment_delimiter:      [],
+      nested_table:                     [],
+      collapsed_citation_structure:     [],
+      empty_table:                      [],
     },
     allIssues: [],
   };
@@ -334,6 +479,8 @@ function validateXML(xmlContent) {
     checkEmptyXmlns(xmlContent),
     checkMalformedCommentDelimiters(xmlContent),
     checkNestedTables(xmlContent),
+    checkCollapsedCitationStructure(xmlContent),
+    checkEmptyTable(xmlContent),
   ].forEach(checks => {
     checks.forEach(issue => {
       results.allIssues.push(issue);

@@ -12,7 +12,7 @@
   --border:#2a2f3d;--border2:#343b4f;--text:#e8eaf0;--muted:#7a80a0;
   --accent:#4f8ef7;--accent2:#3a6fd4;
   --success:#3ecf8e;--warn:#f5a623;--danger:#f04545;--info:#7b6ef7;
-  --violet:#a78bfa;--teal:#2dd4bf;
+  --violet:#a78bfa;--teal:#2dd4bf;--rose:#fb7185;--lime:#a3e635;
   --r:10px;--rs:6px;
   --mono:'JetBrains Mono','Fira Code',monospace;
   --sans:'DM Sans','Segoe UI',sans-serif;
@@ -98,6 +98,8 @@ header{border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:
 .ic-xmlns{background:rgba(167,139,250,.18);color:var(--violet)}
 .ic-cmtd{background:rgba(45,212,191,.18);color:var(--teal)}
 .ic-ntbl{background:rgba(249,115,22,.18);color:#fb923c}
+.ic-cite{background:rgba(251,113,133,.18);color:#fb7185}
+.ic-etbl{background:rgba(163,230,53,.18);color:#86efac}
 .chev{color:var(--muted);font-size:11px;transition:transform .2s}
 .chev.open{transform:rotate(180deg)}
 .ig-b{border-top:1px solid var(--border)}
@@ -153,6 +155,8 @@ header{border-bottom:1px solid var(--border);padding:0 20px;height:56px;display:
   <div class="chip"><span style="color:var(--violet)">⊟</span> Empty xmlns=""</div>
   <div class="chip"><span style="color:var(--teal)">⊟</span> Single-hyphen comment</div>
   <div class="chip"><span style="color:#fb923c">⊞</span> Nested table</div>
+  <div class="chip"><span style="color:var(--rose)">⊟</span> Collapsed citation</div>
+  <div class="chip"><span style="color:var(--lime)">⊟</span> Empty table</div>
 </div>
 
 <div class="layout">
@@ -243,6 +247,13 @@ const SAMPLE=`<?xml version="1.0" encoding="UTF-8"?>
   </table>
 
   <!-- Valid entities (no issue): &amp; &lt; &gt; &nbsp; -->
+
+  <!-- Scenario 8: Collapsed citation structure -->
+  <span class="cite" data-de-type="numbered" href="bib95 bib129" id="MPS_d1e26897" name="bibr"><sup129< span="">.</sup129<></span>
+
+  <!-- Scenario 9: Empty table tag -->
+  <table></table>
+  <table>   </table>
 
 </root>`;
 
@@ -343,7 +354,35 @@ function bv(xml){
     }
   }
 
-  const s={duplicate_cite_href:[],comment_inside_comment:[],table_header_only:[],invalid_named_entity_malformed:[],invalid_named_entity_unknown:[],empty_xmlns_attribute:[],malformed_comment_delimiter:[],nested_table:[]};
+  const s={duplicate_cite_href:[],comment_inside_comment:[],table_header_only:[],invalid_named_entity_malformed:[],invalid_named_entity_unknown:[],empty_xmlns_attribute:[],malformed_comment_delimiter:[],nested_table:[],collapsed_citation_structure:[],empty_table:[]};
+
+  // 8. Collapsed citation structure
+  const r8=/<([a-zA-Z][a-zA-Z0-9]*)((?:\s[^>]*?)?)\s*>/gs;let m8;
+  while((m8=r8.exec(xml))!==null){
+    const tn=m8[1],at=m8[2],fo=m8[0];
+    const cm=at.match(/\bclass=["']([^"']*)["']/i);if(!cm||!/\bcite\b/i.test(cm[1]))continue;
+    const oe=m8.index+fo.length;
+    const br=new RegExp('<\\/?'+tn+'[\\s>]','gi');br.lastIndex=oe;
+    let dp=1,ci=-1,sm8;
+    while((sm8=br.exec(xml))!==null){if(/^\/\//.test(sm8[0])){dp--;if(dp===0){ci=sm8.index;break;}}else if(/^<\//.test(sm8[0])){dp--;if(dp===0){ci=sm8.index;break;}}else dp++;}
+    const be=ci!==-1?ci+('</'+tn+'>').length:Math.min(oe+500,xml.length);
+    const ib=xml.substring(oe,be);
+    const sfr=/<sup(\d+[\w]*)\s*[<>]/gi;let sf;
+    while((sf=sfr.exec(ib))!==null){const ai=oe+sf.index,l=loc(xml,ai);issues.push({scenario:'collapsed_citation_structure',message:'Collapsed citation: malformed <sup> tag "'+sf[0].trim()+'" — bib ref number leaked into tag name',line:l.line,offset:l.offset,snippet:xml.substring(ai,ai+80).replace(/\n/g,' ')});}
+    const scr=/<\/sup\d+[\w]*\s*>/gi;let sc;
+    while((sc=scr.exec(ib))!==null){const ai=oe+sc.index,l=loc(xml,ai);issues.push({scenario:'collapsed_citation_structure',message:'Collapsed citation: malformed </sup> closing tag "'+sc[0].trim()+'" — should be </sup>',line:l.line,offset:l.offset,snippet:xml.substring(ai,ai+80).replace(/\n/g,' ')});}
+    const sgr=/<(\d+)\s*</g;let sg;
+    while((sg=sgr.exec(ib))!==null){const ai=oe+sg.index,l=loc(xml,ai);issues.push({scenario:'collapsed_citation_structure',message:'Collapsed citation: stray numeric fragment "<'+sg[1]+'<" — tag boundary broken',line:l.line,offset:l.offset,snippet:xml.substring(ai,ai+80).replace(/\n/g,' ')});}
+  }
+
+  // 9. Empty table
+  const r9=/<table(\s[^>]*)?>[\s\S]*?<\/table>/gi;let m9;
+  while((m9=r9.exec(xml))!==null){
+    const blk=m9[0],st=blk.replace(/<!--[\s\S]*?-->/g,'');
+    const has=/<tr[\s>]/i.test(st)||/<th[\s>]/i.test(st)||/<td[\s>]/i.test(st)||/<thead[\s>]/i.test(st)||/<tbody[\s>]/i.test(st)||/<tfoot[\s>]/i.test(st)||/<caption[\s>]/i.test(st);
+    if(!has){const l=loc(xml,m9.index);issues.push({scenario:'empty_table',message:'Empty <table> element — contains no rows, cells, or structural content',line:l.line,offset:l.offset,snippet:blk.replace(/\s+/g,' ').substring(0,100)});}
+  }
+
   issues.forEach(i=>{if(s[i.scenario])s[i.scenario].push(i);});
   return{totalIssues:issues.length,scenarios:s,allIssues:issues};
 }
@@ -373,6 +412,8 @@ const SM={
   empty_xmlns_attribute:         {label:'Empty xmlns attribute',        cls:'ic-xmlns',icon:'⊟'},
   malformed_comment_delimiter:   {label:'Single-hyphen comment',        cls:'ic-cmtd',icon:'⊟'},
   nested_table:                  {label:'Nested table',                 cls:'ic-ntbl',icon:'⊞'},
+  collapsed_citation_structure:  {label:'Collapsed citation structure', cls:'ic-cite',icon:'⊟'},
+  empty_table:                   {label:'Empty table tag',              cls:'ic-etbl',icon:'⊟'},
 };
 
 // ── Render ────────────────────────────────────────────────────────────────────

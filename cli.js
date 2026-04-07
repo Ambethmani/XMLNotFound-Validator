@@ -114,6 +114,8 @@ const LABELS = {
   empty_xmlns_attribute:          'Empty xmlns attribute value',
   malformed_comment_delimiter:    'Malformed comment delimiter (single hyphen)',
   nested_table:                   'Nested <table> inside <table>',
+  collapsed_citation_structure:   'Collapsed citation structure',
+  empty_table:                    'Empty <table> tag',
 };
 
 let issueNum = 0;
